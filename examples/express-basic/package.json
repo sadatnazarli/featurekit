@@ -1,0 +1,16 @@
+{
+  "name": "example-express-basic",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx index.ts"
+  },
+  "dependencies": {
+    "express": "^5.0.0",
+    "featurekit": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "@types/express": "^5.0.0"
+  }
+}

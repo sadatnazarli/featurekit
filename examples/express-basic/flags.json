@@ -1,0 +1,11 @@
+{
+  "newDashboard": true,
+  "betaFeature": {
+    "enabled": true,
+    "percentage": 50,
+    "users": ["admin@example.com"],
+    "overrides": {
+      "blocked-user": false
+    }
+  }
+}
