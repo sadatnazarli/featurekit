@@ -1,12 +1,35 @@
-# featurekit
+<p align="center">
+  <h1 align="center">featurekit</h1>
+</p>
 
-The dotenv of feature flags. Define flags in a JSON file, get typed evaluation anywhere in your codebase — zero infrastructure, zero dependencies.
+<p align="center">
+  <strong>The dotenv of feature flags.</strong><br/>
+  Define flags in a JSON file. Get typed evaluation anywhere in your codebase.<br/>
+  Zero infrastructure. Zero dependencies.
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/featurekit"><img src="https://badge.fury.io/js/featurekit.svg" alt="npm version" /></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-strict-blue.svg" alt="TypeScript: strict" /></a>
+  <a href="#"><img src="https://img.shields.io/badge/dependencies-0-brightgreen.svg" alt="zero dependencies" /></a>
+</p>
+
+---
 
 ## Why
 
-You want to roll out a feature to 10% of users, or toggle something off without a redeploy. Your options are LaunchDarkly ($500+/month), self-hosted Unleash (Docker, databases, maintenance), or hardcoded `if` statements scattered across your codebase. None of these work for a small team shipping fast.
+You want to roll out a feature to 10% of users, or toggle something off without a redeploy. Your options are:
+
+| Option | Problem |
+|--------|---------|
+| LaunchDarkly | $500+/month |
+| Unleash / Flagsmith | Self-hosted — Docker, databases, maintenance |
+| Hardcoded `if` statements | Scattered across your codebase, no rollout control |
 
 featurekit gives you typed feature flags that read from a JSON file or environment variable. Same user always gets the same result. When you outgrow it, swap the adapter — same API, same code.
+
+---
 
 ## Install
 
@@ -16,9 +39,13 @@ npm install featurekit
 pnpm add featurekit
 ```
 
+> Requires Node.js 18+
+
+---
+
 ## Quick Start
 
-Create a `flags.json`:
+**1. Create a `flags.json`:**
 
 ```json
 {
@@ -31,7 +58,7 @@ Create a `flags.json`:
 }
 ```
 
-Use it:
+**2. Use it:**
 
 ```ts
 import { createFlags, fileAdapter } from 'featurekit'
@@ -41,7 +68,7 @@ const flags = createFlags({
   defaults: { newDashboard: false, betaFeature: false },
 })
 
-// In an Express app — context is automatic via middleware
+// Context is automatic via middleware
 app.use(flags.middleware())
 
 app.get('/dashboard', async (req, res) => {
@@ -52,7 +79,9 @@ app.get('/dashboard', async (req, res) => {
 })
 ```
 
-Flag names are fully typed — `flags.isEnabled('typo')` is a compile-time error.
+> Flag names are fully typed — `flags.isEnabled('typo')` is a **compile-time error**.
+
+---
 
 ## Flag Schema
 
@@ -91,20 +120,24 @@ Flags can be a simple boolean or a rule-based object:
 
 ### Evaluation Priority
 
-For rule-based flags, evaluation follows this order:
+For rule-based flags, evaluation follows a strict priority chain:
 
-1. `enabled: false` → flag is off, skip everything
-2. `overrides[userId]` → explicit per-user override (true or false)
-3. `users` array → match on userId or email
-4. `groups` array → match on any group the user belongs to
-5. `percentage` → deterministic hash of `flagName:userId`, same user always gets the same result
-6. Fall back to `enabled` value
+| Priority | Rule | Behavior |
+|----------|------|----------|
+| 1 | `enabled: false` | Flag is off — skip everything |
+| 2 | `overrides[userId]` | Explicit per-user override (true or false) |
+| 3 | `users` array | Match on userId or email |
+| 4 | `groups` array | Match on any group the user belongs to |
+| 5 | `percentage` | Deterministic hash of `flagName:userId` — same user, same result |
+| 6 | Fallback | Return `enabled` value |
+
+---
 
 ## Adapters
 
 ### File Adapter
 
-Reads from a JSON file. Hot-reloads on file changes — no restart needed.
+Reads from a JSON file. **Hot-reloads on file changes** — no restart needed. If the file becomes invalid JSON, it logs a warning and keeps the previous valid state.
 
 ```ts
 import { fileAdapter } from 'featurekit'
@@ -137,9 +170,11 @@ const source = memoryAdapter({
 })
 ```
 
+---
+
 ## Context Propagation
 
-featurekit uses `AsyncLocalStorage` to propagate user context automatically. Set it once in middleware, read it anywhere.
+featurekit uses `AsyncLocalStorage` to propagate user context automatically. Set it once in middleware, read it anywhere — no argument threading through your service layers.
 
 ### Express / Fastify / Koa
 
@@ -147,7 +182,7 @@ featurekit uses `AsyncLocalStorage` to propagate user context automatically. Set
 app.use(flags.middleware())
 ```
 
-The middleware reads `userId`, `email`, and `groups` from the request. Pass a custom extractor for your auth setup:
+Pass a custom extractor for your auth setup:
 
 ```ts
 const flags = createFlags({
@@ -179,13 +214,15 @@ await runWithContext(
 )
 ```
 
-## Explicit Context Override
+### Explicit Context Override
 
 Skip the automatic context and pass it directly:
 
 ```ts
 await flags.isEnabled('betaFeature', { userId: 'usr_123' })
 ```
+
+---
 
 ## Get All Flags
 
@@ -196,6 +233,43 @@ const allFlags = await flags.getAll()
 // → { newDashboard: true, betaFeature: false }
 ```
 
+---
+
+## Testing
+
+Use the memory adapter to control flag state in tests without touching files or env vars:
+
+```ts
+import { createFlags, memoryAdapter } from 'featurekit'
+
+const flags = createFlags({
+  source: memoryAdapter({ newDashboard: true, betaFeature: false }),
+  defaults: { newDashboard: false, betaFeature: false },
+})
+
+// Assert behavior under specific flag states
+expect(await flags.isEnabled('newDashboard')).toBe(true)
+```
+
+---
+
+## API Reference
+
+| Method | Description |
+|--------|-------------|
+| `createFlags({ source, defaults })` | Create a typed featurekit instance |
+| `flags.isEnabled(name, ctx?)` | Check if a flag is enabled for the current user |
+| `flags.getAll(ctx?)` | Evaluate all flags at once |
+| `flags.middleware()` | Express/Fastify/Koa middleware for automatic context |
+| `flags.runWithContext(ctx, fn)` | Run a function with explicit user context |
+| `flags.destroy()` | Stop watching and clean up resources |
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and guidelines.
+
 ## License
 
-MIT
+[MIT](LICENSE)
